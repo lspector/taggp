@@ -31,6 +31,10 @@
 
 (defn norfn [a b] (not (or a b)))
 
+(defn noop0 [] false)
+  
+(defn noop1 [a] a)
+
 (defn error 
   [individual]
   (reduce +' (map (fn [[bindings target]] 
