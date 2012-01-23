@@ -375,6 +375,9 @@
       (println "     Tagged call ratio:"
                (float (/ (count (filter :tagged (filter map? (flatten (map first population)))))
                          (count (flatten (map first population))))))
+      (println "     Tagged-with-arg call ratio:"
+               (float (/ (count (filter :tagged-with-arg (filter map? (flatten (map first population)))))
+                         (count (flatten (map first population))))))
       (println "     Unique error values in population:"
                (count (distinct (map second population))))
       (if (@successful-individual? (first sorted))
