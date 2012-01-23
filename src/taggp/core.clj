@@ -201,10 +201,6 @@
       1.0
       (float (/ num denom)))))
   
-(defn noop0 [] 0)
-  
-(defn noop1 [a] a)
-
 (defn abs ;; works even for bigints
   [x]
   (if (< x 0) (- x) x))

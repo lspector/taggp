@@ -74,6 +74,10 @@
         (* -16 x))
      ]))
 
+(defn noop0 [] 0)
+  
+(defn noop1 [a] a)
+
 (defn error
   "Error function for testing individuals."
   [individual]
