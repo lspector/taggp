@@ -115,30 +115,31 @@
        (count (:mowed *lawn*)))))
 
 (defn run
-  "An evolutionary run. This is separated for REPL usage."
-  [size limit]
+  "An evolutionary run. This is separated for REPL usage. Size should be something
+   like {:x 8 :y 8}."
+  [size limit] 
   (reset! lawn-size size)
   (reset! function-table
-	  (let [basic-set (zipmap '(v8a frog progn mow left)
-				  '(2   1    2     0   0))]
-	    (if @allow-tagging
-	      (merge basic-set
-		     (zipmap '(:tagged-erf :tag-erf :tagged-with-arg-erf)
-			     '(0           1         1)))
-	      (if @use-noops
-		(merge basic-set
-		       (zipmap '(noop0 noop1)
-			       '(0     1)))
-		basic-set))))
+          (let [basic-set (zipmap '(v8a frog progn mow left)
+                                  '(2   1    2     0   0))]
+            (if @allow-tagging
+              (merge basic-set
+                     (zipmap '(:tagged-erf :tag-erf :tagged-with-args-erf)
+                             '(0           1         1)))
+              (if @use-noops
+                (merge basic-set
+                       (zipmap '(noop0 noop1)
+                               '(0     1)))
+                basic-set))))
   (reset! terminal-set
-	  (let [basic-terminals '(:intvec2D-erc)]	    
-	    (if @allow-tagging
-	      (cons 'arg basic-terminals)
-	      basic-terminals)))
+          (let [basic-terminals '(:intvec2D-erc)]	    
+            (if @allow-tagging
+              (cons 'arg0 basic-terminals)
+              basic-terminals)))
   (reset! error-fn (partial lawnmower-error size limit))
   (reset! successful-individual?
-	  (fn [individual]
-	    (zero? (second individual))))
+          (fn [individual]
+            (zero? (second individual))))
   (update-terminal-proportion)
   (evolve))
 
@@ -146,14 +147,14 @@
   [& params]
   (in-ns 'taggp.examples.lawnmower) ;; when using lein run (= *ns* 'user) by default, we need to switch
   (let [params (merge {:allow-tagging true
-		       :tagdo-semantics true
-		       :use-noops true
-		       :lawn-width 8
-		       :lawn-height 8
-		       :action-limit 100};; both (move-limit and turn-limit) = action-limt
+                       :tagdo-semantics true
+                       :use-noops true
+                       :lawn-width 8
+                       :lawn-height 8
+                       :action-limit 100};; both (move-limit and turn-limit) = action-limt
                       (apply hash-map (map read-string params)))
-	lawn-size {:x (:lawn-width params)
-		   :y (:lawn-height params)}]
+        lawn-size {:x (:lawn-width params)
+                   :y (:lawn-height params)}]
     (println "lawn-size =" lawn-size)
     (println "action-limit =" (:action-limit params))
     (reset! allow-tagging (:allow-tagging params))

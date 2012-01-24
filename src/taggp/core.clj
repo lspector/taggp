@@ -21,7 +21,7 @@
 (def allow-tagging (atom true))
 (def tag-limit (atom 1000))
 (def tagdo-semantics (atom true))
-(def use-noops (atom true))
+(def use-noops (atom true)) ;; only has an effect if allow-tagging is false
 
 (def execution-limit (atom 1000))
 (def penalty-for-exceeding-limit (atom 10000000000000N))
@@ -70,11 +70,11 @@
    and where the single argument paired with this 'function' is the item to be tagged.
    Tag references look like zero-argument function calls but with a function of the 
    form {:tagged n} where n is an integer. An alternative tag reference is a one-argument
-   function call with a function of the form {:tagged-with-arg n}; here the code in
-   the argument position of the call will be substituted (without evaluation) for the
-   symbol arg in the code retrieved via tag n before branching to that code. In the 
-   context of boolean values the evaluator supports an 'if' form that takes three
-   arguments: a condition, an if-true clause, and an if-false clause."
+   function call with a function of the form {:tagged-with-args n}; here the code in
+   the argument positions of the call will be substituted (without evaluation) for the
+   symbols arg0, arg1, ... etc. in the code retrieved via tag n before branching to that
+   code. In the context of boolean values the evaluator supports an 'if' form that takes
+   three arguments: a condition, an if-true clause, and an if-false clause."
   ([expression step-limit constants default-value]
     (first (eval-with-tagging expression (sorted-map) step-limit constants default-value)))
   ([expression tag-space step-limit constants default-value] 
@@ -82,7 +82,9 @@
     (if (<= step-limit 0)
       [:limit-exceeded tag-space step-limit]
       (let [step-limit (dec step-limit)
-            constants (merge {'arg default-value} constants)]
+            constants (merge (zipmap '(arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9)
+                                     (repeat default-value)) 
+                             constants)]
         (if (not (seq? expression))
           [(get constants expression expression) tag-space step-limit]
           (if (= 1 (count expression))
@@ -102,11 +104,12 @@
                   [default-value 
                    (assoc tag-space (:tag (first expression)) (second expression)) 
                    step-limit])
-                ;; must be tagged-with-arg 
+                ;; must be tagged-with-args 
                 (eval-with-tagging
                   (clojure.walk/postwalk-replace
-                    {'arg (second expression)}
-                    (closest-association (:tagged-with-arg (first expression)) tag-space default-value))
+                    (zipmap '(arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9)
+                            (rest expression))
+                    (closest-association (:tagged-with-args (first expression)) tag-space default-value))
                   tag-space step-limit constants default-value))
               (if (= 'if (first expression))
                 (let [condition-eval-result 
@@ -161,7 +164,7 @@
   [item]
   (cond (= item :tag-erf) {:tag (rand-int @tag-limit)}
         (= item :tagged-erf) {:tagged (rand-int @tag-limit)}
-        (= item :tagged-with-arg-erf) {:tagged-with-arg (rand-int @tag-limit)}
+        (= item :tagged-with-args-erf) {:tagged-with-args (rand-int @tag-limit)}
         :else item))
 
 ;; random code generator from the GP field guide p 14
@@ -180,7 +183,9 @@
     (expand-erc (rand-nth @terminal-set))
     (let [f (expand-erf (rand-nth (keys @function-table)))]
       (cons f (repeatedly (if (map? f)
-                            (if (:tagged f) 0 1) ;; note: assumes all map fns take 1 arg except :tagged
+                            (cond (:tagged f) 0 
+                                  (:tag f) 1
+                                  (:tagged-with-args f) (get @function-table :tagged-with-args-erf))
                             (get @function-table f))
                           #(random-code (dec depth-limit) method))))))
 
@@ -375,8 +380,8 @@
       (println "     Tagged call ratio:"
                (float (/ (count (filter :tagged (filter map? (flatten (map first population)))))
                          (count (flatten (map first population))))))
-      (println "     Tagged-with-arg call ratio:"
-               (float (/ (count (filter :tagged-with-arg (filter map? (flatten (map first population)))))
+      (println "     Tagged-with-args call ratio:"
+               (float (/ (count (filter :tagged-with-args (filter map? (flatten (map first population)))))
                          (count (flatten (map first population))))))
       (println "     Unique error values in population:"
                (count (distinct (map second population))))
