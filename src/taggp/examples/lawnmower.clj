@@ -153,5 +153,5 @@
     (println "lawn-size =" lawn-size)
     (println "action-limit =" (:action-limit params))
     (run lawn-size (:action-limit params))
-    (run)
+    (run lawn-size (:action-limit params))
     (System/exit 0)))
