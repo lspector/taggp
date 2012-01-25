@@ -113,17 +113,13 @@
         (if (not (seq? expression))
           [(get constants expression expression) tag-space step-limit]
           (if (= 1 (count expression))
-            (if (map? (first expression)) ;If yes, this is a :tagged call
-              (if @disallow-tagged-recursion
-                (eval-with-tagging
-                  (closest-association (:tagged (first expression)) tag-space default-value)
-                  (untag (:tagged (first expression)) tag-space)
-                  step-limit
-                  constants
-                  default-value)
-                (eval-with-tagging
-                  (closest-association (:tagged (first expression)) tag-space default-value)
-                  tag-space step-limit constants default-value))
+            (if (map? (first expression)) ;If yes, this is a :tagged call             
+              (eval-with-tagging
+                (closest-association (:tagged (first expression)) tag-space default-value)
+                (if @disallow-tagged-recursion tag-space (untag (:tagged (first expression)) tag-space))
+                step-limit
+                constants
+                default-value)
               [((resolve (first expression))) tag-space step-limit])
             (if (map? (first expression))
               (if (:tag (first expression))
@@ -142,7 +138,8 @@
                     (zipmap '(arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9)
                             (rest expression))
                     (closest-association (:tagged-with-args (first expression)) tag-space default-value))
-                  tag-space step-limit constants default-value))
+                  (if @disallow-tagged-recursion tag-space (untag (:tagged (first expression)) tag-space))
+                  step-limit constants default-value))
               (if (= 'if (first expression))
                 (let [condition-eval-result 
                       (eval-with-tagging (second expression) tag-space step-limit constants default-value)]
