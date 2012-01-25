@@ -380,6 +380,7 @@
   (println "allow-tagging =" @allow-tagging)
   (println "tagdo-semantics =" @tagdo-semantics)
   (println "disallow-tagged-recursion =" @disallow-tagged-recursion)
+  (println "tagged-with-args =" @tagged-with-args)
   (println "use-noops =" @use-noops)
   (println "trivial-geography-radius =" @trivial-geography-radius)
   (println "population-size =" @population-size)
@@ -465,7 +466,7 @@
 		       :mutation-fraction 0.05
 		       :crossover-fraction 0.9
 		       :reproductive-tournament-size 7
-                       :disallow-tagged-recursion false}
+                       :disallow-tagged-recursion true}
                       (apply hash-map (map read-string params)))]
     (reset! allow-tagging (:allow-tagging params))
     (reset! tagdo-semantics (:tagdo-semantics params))
