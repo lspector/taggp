@@ -135,7 +135,7 @@
   (reset! terminal-set
           (let [basic-terminals '(:intvec2D-erc)]
 	    (if (and @allow-tagging @tagged-with-args)
-	      (concat '(arg0 arg1 arg2)
+	      (concat '(arg0)
 		      basic-terminals)
 	      basic-terminals)))
   (reset! error-fn (partial lawnmower-error size limit))
