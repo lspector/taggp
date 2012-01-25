@@ -116,7 +116,7 @@
             (if (map? (first expression)) ;If yes, this is a :tagged call             
               (eval-with-tagging
                 (closest-association (:tagged (first expression)) tag-space default-value)
-                (if @disallow-tagged-recursion tag-space (untag (:tagged (first expression)) tag-space))
+                (if @disallow-tagged-recursion (untag (:tagged (first expression)) tag-space) tag-space)
                 step-limit
                 constants
                 default-value)
