@@ -138,7 +138,7 @@
                     (zipmap '(arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9)
                             (rest expression))
                     (closest-association (:tagged-with-args (first expression)) tag-space default-value))
-                  (if @disallow-tagged-recursion (untag (:tagged (first expression)) tag-space) tag-space)
+                  (if @disallow-tagged-recursion (untag (:tagged-with-args (first expression)) tag-space) tag-space)
                   step-limit constants default-value))
               (if (= 'if (first expression))
                 (let [condition-eval-result 
