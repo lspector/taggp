@@ -23,7 +23,7 @@
 (def tagdo-semantics (atom true))
 (def use-noops (atom true)) ;; only has an effect if allow-tagging is false
 
-(def use-tag-with-args (atom false))
+(def tagged-with-args (atom false))
 (def disallow-tagged-recursion (atom false))
 
 (def execution-limit (atom 1000))
