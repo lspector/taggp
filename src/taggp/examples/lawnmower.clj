@@ -115,8 +115,10 @@
        (count (:mowed *lawn*)))))
 
 (defn run
-  "An evolutionary run. This is separated for REPL usage."
-  []
+  "An evolutionary run. This is separated for REPL usage. Size should be something
+   like {:x 8 :y 8}."
+  [size limit] 
+  (reset! lawn-size size)
   (reset! function-table
           (let [basic-set (zipmap '(v8a frog progn mow left)
                                   '(2   1    2     0   0))]
@@ -136,7 +138,7 @@
 	      (concat '(arg0 arg1 arg2)
 		      basic-terminals)
 	      basic-terminals)))
-  (reset! error-fn error)       
+  (reset! error-fn (partial lawnmower-error size limit))
   (evolve))
 
 (defn -main 
