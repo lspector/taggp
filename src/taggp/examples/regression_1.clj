@@ -93,8 +93,11 @@
   []
   (reset! function-table
           (if @allow-tagging
-            (zipmap '(+' -' *' pd :tagged-erf :tag-erf :tagged-with-args-erf)
-                    '(2  2  2  2  0           1         1))
+            (if @use-tag-with-args
+              (zipmap '(+' -' *' pd :tagged-erf :tag-erf :tagged-with-args-erf)
+                      '(2  2  2  2  0           1         1))
+              (zipmap '(+' -' *' pd :tagged-erf :tag-erf)
+                      '(2  2  2  2  0           1)))
             (if @use-noops
               (zipmap '(+' -' *' pd noop0 noop1 noop1)
                       '(2  2  2  2  0     1     1))

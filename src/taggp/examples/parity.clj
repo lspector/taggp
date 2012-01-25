@@ -49,8 +49,11 @@
   []
   (reset! function-table
           (if @allow-tagging
-            (zipmap '(andfn orfn nandfn norfn :tagged-erf :tag-erf :tagged-with-args-erf)
-                    '(2     2    2      2     0           1        3))
+            (if @use-tag-with-args
+              (zipmap '(andfn orfn nandfn norfn :tagged-erf :tag-erf :tagged-with-args-erf)
+                      '(2     2    2      2     0           1        3))
+              (zipmap '(andfn orfn nandfn norfn :tagged-erf :tag-erf)
+                      '(2     2    2      2     0           1)))
             (if @use-noops
               (zipmap '(andfn orfn nandfn norfn noop0 noop1 noop1)
                       '(2     2    2      2     0     1     1))
@@ -75,4 +78,5 @@
     (reset! tagdo-semantics (:tagdo-semantics params))
     (reset! use-noops (:use-noops params))
     (run)
-    (System/exit 0)))
+    ;(System/exit 0)
+    ))

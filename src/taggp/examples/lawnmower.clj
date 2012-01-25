@@ -123,9 +123,13 @@
           (let [basic-set (zipmap '(v8a frog progn mow left)
                                   '(2   1    2     0   0))]
             (if @allow-tagging
-              (merge basic-set
-                     (zipmap '(:tagged-erf :tag-erf :tagged-with-args-erf)
-                             '(0           1         1)))
+              (if @use-tag-with-args
+                (merge basic-set
+                       (zipmap '(:tagged-erf :tag-erf :tagged-with-args-erf)
+                               '(0           1         1)))
+                (merge basic-set
+                       (zipmap '(:tagged-erf :tag-erf)
+                               '(0           1))))
               (if @use-noops
                 (merge basic-set
                        (zipmap '(noop0 noop1)

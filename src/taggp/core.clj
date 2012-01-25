@@ -23,6 +23,9 @@
 (def tagdo-semantics (atom true))
 (def use-noops (atom true)) ;; only has an effect if allow-tagging is false
 
+(def use-tag-with-args (atom false))
+(def disallow-tagged-recursion (atom false))
+
 (def execution-limit (atom 1000))
 (def penalty-for-exceeding-limit (atom 10000000000000N))
 
@@ -56,6 +59,28 @@
         (second (first associations))
         (recur (rest associations))))))
 
+(defn closest-tag
+  "Returns the key for the closest match to the given tag in the given tag space, with
+   nil returned if the tag-space is empty."
+  [tag tag-space]
+  (if (empty? tag-space)
+    nil
+    (loop [associations (conj (vec tag-space) (first tag-space))] ;; conj does wrap
+      (if (or (empty? (rest associations))
+              (<= tag (ffirst associations)))
+        (ffirst associations)
+        (recur (rest associations))))))
+
+(defn untag
+  "Untags the closest match to the given tag in the given tag space. If the tag space
+   is empty, returns the empty tag space."
+  [tag tag-space]
+  (let [closest (closest-tag tag tag-space)]
+    (if (nil? closest)
+      tag-space
+      (dissoc tag-space closest))))
+  
+
 ;;; the following code (and the definition of tagdo-semantics above) is from 
 ;;; eval_with_tagging_with_args.clj
 
@@ -88,10 +113,17 @@
         (if (not (seq? expression))
           [(get constants expression expression) tag-space step-limit]
           (if (= 1 (count expression))
-            (if (map? (first expression))
-              (eval-with-tagging
-                (closest-association (:tagged (first expression)) tag-space default-value)
-                tag-space step-limit constants default-value)
+            (if (map? (first expression)) ;If yes, this is a :tagged call
+              (if @disallow-tagged-recursion
+                (eval-with-tagging
+                  (closest-association (:tagged (first expression)) tag-space default-value)
+                  (untag (:tagged (first expression)) tag-space)
+                  step-limit
+                  constants
+                  default-value)
+                (eval-with-tagging
+                  (closest-association (:tagged (first expression)) tag-space default-value)
+                  tag-space step-limit constants default-value))
               [((resolve (first expression))) tag-space step-limit])
             (if (map? (first expression))
               (if (:tag (first expression))
@@ -385,6 +417,16 @@
                          (count (flatten (map first population))))))
       (println "     Unique error values in population:"
                (count (distinct (map second population))))
+      (let [tag-using-pgms (map second (filter (fn [[p e]]
+                                                 (some (fn [item]
+                                                         (or (:tagged item)
+                                                             (:tagged-with-args item)))
+                                                       (flatten p)))
+                                               population))]
+        (println "     Number of programs that may retrieve tags:" (count tag-using-pgms))
+        (println "     Number of these that exceed limit penalty:"
+                 (count (filter #(>= % @penalty-for-exceeding-limit)
+                                tag-using-pgms))))
       (if (@successful-individual? (first sorted))
         (println "Success:" (first (first sorted)))
         (if (>= generation @maximum-generations)
