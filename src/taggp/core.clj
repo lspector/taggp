@@ -382,10 +382,17 @@
 (defn evolve []
   (println "allow-tagging =" @allow-tagging)
   (println "tagdo-semantics =" @tagdo-semantics)
+  (println "disallow-tagged-recursion =" @disallow-tagged-recursion)
   (println "use-noops =" @use-noops)
   (println "trivial-geography-radius =" @trivial-geography-radius)
   (println "population-size =" @population-size)
-  (println "max-generations =" @maximum-generations)  
+  (println "max-generations =" @maximum-generations)
+  (println "single-thread-mode =" @single-thread-mode)
+  (println "absolute-depth-limit =" @absolute-depth-limit)
+  (println "reproductive-tournament-size =" @reproductive-tournament-size)
+  (println "mutation-probability =" @mutation-fraction)
+  (println "crossover-probability =" @crossover-fraction)
+  (println "tag-limit =" @tag-limit)  
   (update-terminal-proportion)
   (println "Starting evolution...")
   (loop [generation 0
@@ -448,3 +455,30 @@
 
 ;(evolve)
 
+(defn parse-parameters
+  "Parse parameters from command line arguments."
+  [params]
+  (let [params (merge {:allow-tagging true
+                       :tagdo-semantics true
+                       :use-noops true
+		       :tagged-with-args true
+		       :single-thread-mode false
+		       :population-size 1000
+		       :maximum-generations 50
+		       :mutation-fraction 0.05
+		       :crossover-fraction 0.9
+		       :reproductive-tournament-size 7
+                       :disallow-tagged-recursion false}
+                      (apply hash-map (map read-string params)))]
+    (reset! allow-tagging (:allow-tagging params))
+    (reset! tagdo-semantics (:tagdo-semantics params))
+    (reset! tagged-with-args (:tagged-with-args params))
+    (reset! disallow-tagged-recursion (:disallow-tagged-recursion params))
+    (reset! use-noops (:use-noops params))
+    (reset! single-thread-mode (:single-thread-mode params))
+    (reset! population-size (:population-size params))
+    (reset! maximum-generations (:maximum-generations params))
+    (reset! mutation-fraction (:mutation-fraction params))
+    (reset! crossover-fraction (:crossover-fraction params))
+    (reset! reproductive-tournament-size (:reproductive-tournament-size params))
+    params))

@@ -115,54 +115,41 @@
        (count (:mowed *lawn*)))))
 
 (defn run
-  "An evolutionary run. This is separated for REPL usage. Size should be something
-   like {:x 8 :y 8}."
-  [size limit] 
-  (reset! lawn-size size)
+  "An evolutionary run. This is separated for REPL usage."
+  []
   (reset! function-table
           (let [basic-set (zipmap '(v8a frog progn mow left)
                                   '(2   1    2     0   0))]
-            (if @allow-tagging
-              (if @use-tag-with-args
-                (merge basic-set
-                       (zipmap '(:tagged-erf :tag-erf :tagged-with-args-erf)
-                               '(0           1         1)))
-                (merge basic-set
-                       (zipmap '(:tagged-erf :tag-erf)
-                               '(0           1))))
-              (if @use-noops
-                (merge basic-set
-                       (zipmap '(noop0 noop1)
-                               '(0     1)))
-                basic-set))))
+	    (if @allow-tagging
+	      (merge basic-set
+		     (zipmap '(:tagged-erf :tag-erf) 
+			     '(0           1))
+		     (when @tagged-with-args {:tagged-with-args-erf 1}))
+	      (if @use-noops
+		(merge basic-set
+		       (zipmap '(noop0 noop1)
+			       '(0     1)))
+		basic-set))))	    
   (reset! terminal-set
-          (let [basic-terminals '(:intvec2D-erc)]	    
-            (if @allow-tagging
-              (cons 'arg0 basic-terminals)
-              basic-terminals)))
-  (reset! error-fn (partial lawnmower-error size limit))
-  (reset! successful-individual?
-          (fn [individual]
-            (zero? (second individual))))
-  (update-terminal-proportion)
+          (let [basic-terminals '(:intvec2D-erc)]
+	    (if (and @allow-tagging @tagged-with-args)
+	      (concat '(arg0 arg1 arg2)
+		      basic-terminals)
+	      basic-terminals)))
+  (reset! error-fn error)       
   (evolve))
 
 (defn -main 
   [& params]
   (in-ns 'taggp.examples.lawnmower) ;; when using lein run (= *ns* 'user) by default, we need to switch
-  (let [params (merge {:allow-tagging true
-                       :tagdo-semantics true
-                       :use-noops true
-                       :lawn-width 8
+  (let [params (merge {:lawn-width 8
                        :lawn-height 8
-                       :action-limit 100};; both (move-limit and turn-limit) = action-limt
-                      (apply hash-map (map read-string params)))
+                       :action-limit 100}
+                      (parse-parameters params))
         lawn-size {:x (:lawn-width params)
                    :y (:lawn-height params)}]
     (println "lawn-size =" lawn-size)
     (println "action-limit =" (:action-limit params))
-    (reset! allow-tagging (:allow-tagging params))
-    (reset! tagdo-semantics (:tagdo-semantics params))
-    (reset! use-noops (:use-noops params))
     (run lawn-size (:action-limit params))
+    (run)
     (System/exit 0)))

@@ -48,35 +48,31 @@
   "An evolutionary run. This is separated for REPL usage."
   []
   (reset! function-table
-          (if @allow-tagging
-            (if @use-tag-with-args
-              (zipmap '(andfn orfn nandfn norfn :tagged-erf :tag-erf :tagged-with-args-erf)
-                      '(2     2    2      2     0           1        3))
-              (zipmap '(andfn orfn nandfn norfn :tagged-erf :tag-erf)
-                      '(2     2    2      2     0           1)))
-            (if @use-noops
-              (zipmap '(andfn orfn nandfn norfn noop0 noop1 noop1)
-                      '(2     2    2      2     0     1     1))
-              (zipmap '(andfn orfn nandfn norfn)
-                      '(2     2    2      2    )))))
+	  (let [basic-set (zipmap '(andfn orfn nandfn norfn)		
+				  '(2     2    2      2))]
+	    (if @allow-tagging
+	      (merge basic-set
+		     (zipmap '(:tagged-erf :tag-erf) 
+			     '(0           1))
+		     (when @tagged-with-args {:tagged-with-args-erf 3}))
+	      (if @use-noops
+		(merge basic-set
+		       (zipmap '(noop0 noop1)
+			       '(0     1)))
+		basic-set))))	    
   (reset! terminal-set
-          (if @allow-tagging
-            '(d0 d1 d2 d3 arg0 arg1 arg2) ;; also include d4 and d6 for 6-parity
-            '(d0 d1 d2 d3)))
+          (let [basic-terminals '(d0 d1 d2 d3)]
+	    (if (and @allow-tagging @tagged-with-args)
+	      (concat '(arg0 arg1 arg2)
+		      basic-terminals)
+	      basic-terminals)))
   (reset! error-fn error)       
   (evolve))
 
 (defn -main 
   [& params]
   (in-ns 'taggp.examples.parity) ;; when using lein run (= *ns* 'user) by default, we need to switch
-  (let [params (merge {:allow-tagging true
-                       :tagdo-semantics true
-                       :use-noops true}
-                      (apply hash-map (map read-string params)))]
+  (let [params (merge (parse-parameters params))]
     (println "target-data =" target-data)
-    (reset! allow-tagging (:allow-tagging params))
-    (reset! tagdo-semantics (:tagdo-semantics params))
-    (reset! use-noops (:use-noops params))
     (run)
-    ;(System/exit 0)
-    ))
+    (System/exit 0)))
