@@ -406,6 +406,8 @@
   (println "reproductive-tournament-size =" @reproductive-tournament-size)
   (println "mutation-probability =" @mutation-fraction)
   (println "crossover-probability =" @crossover-fraction)
+  (println "node-selection-method =" @node-selection-method)
+  (println "node-tournament-size =" @node-tournament-size)
   (println "tag-limit =" @tag-limit)  
   (update-terminal-proportion)
   (println "Starting evolution...")
@@ -488,8 +490,12 @@
 		       :reproductive-tournament-size 7
                        :disallow-tagged-recursion true
                        :absolute-depth-limit 17
-                       :tag-depth-limit 17}
+                       :tag-depth-limit 17
+                       :node-selection-method :koza
+                       :node-tournament-size 2}
                       (apply hash-map (map read-string params)))]
+    (reset! node-selection-method (:node-selection-method params))
+    (reset! node-tournament-size (:node-tournament-size params))
     (reset! absolute-depth-limit (:absolute-depth-limit params))
     (reset! tag-depth-limit (:tag-depth-limit params))
     (reset! allow-tagging (:allow-tagging params))
