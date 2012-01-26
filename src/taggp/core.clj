@@ -25,7 +25,7 @@
 (def use-noops (atom true)) ;; only has an effect if allow-tagging is false
 
 (def tagged-with-args (atom false))
-(def disallow-tagged-recursion (atom false))
+(def disallow-tagged-recursion (atom true))
 
 (def execution-limit (atom 1000))
 (def penalty-for-exceeding-limit (atom 10000000000000N))
@@ -80,7 +80,15 @@
     (if (nil? closest)
       tag-space
       (dissoc tag-space closest))))
-  
+
+(defn replace-tag-with-default
+  "Replaces the closest match to the given tag in the given tag space with a default value.
+   If the tag space is empty, returns the empty tag space."
+  [tag tag-space default-value]
+  (let [closest (closest-tag tag tag-space)]
+    (if (nil? closest)
+      tag-space
+      (assoc tag-space closest default-value))))
 
 ;;; the following code (and the definition of tagdo-semantics above) is from 
 ;;; eval_with_tagging_with_args.clj
@@ -117,7 +125,11 @@
             (if (map? (first expression)) ;If yes, this is a :tagged call             
               (eval-with-tagging
                 (closest-association (:tagged (first expression)) tag-space default-value)
-                (if @disallow-tagged-recursion (untag (:tagged (first expression)) tag-space) tag-space)
+                (if @disallow-tagged-recursion
+                  (replace-tag-with-default (:tagged (first expression))
+                                            tag-space
+                                            default-value)
+                  tag-space)
                 step-limit
                 constants
                 default-value)
@@ -139,7 +151,11 @@
                     (zipmap '(arg0 arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8 arg9)
                             (rest expression))
                     (closest-association (:tagged-with-args (first expression)) tag-space default-value))
-                  (if @disallow-tagged-recursion (untag (:tagged-with-args (first expression)) tag-space) tag-space)
+                  (if @disallow-tagged-recursion
+                    (replace-tag-with-default (:tagged-with-args (first expression))
+                                              tag-space
+                                              default-value)
+                    tag-space)
                   step-limit constants default-value))
               (if (= 'if (first expression))
                 (let [condition-eval-result 
@@ -479,7 +495,7 @@
   (let [params (merge {:allow-tagging true
                        :tagdo-semantics true
                        :use-noops true
-		       :tagged-with-args true
+		       :tagged-with-args false
 		       :single-thread-mode false
 		       :population-size 1000
 		       :maximum-generations 50
