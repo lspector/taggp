@@ -11,6 +11,7 @@
 
 (def single-thread-mode (atom false))
 (def absolute-depth-limit (atom 17))
+(def tag-depth-limit (atom 17))
 (def population-size (atom 1000))
 (def trivial-geography-radius (atom 500))
 (def maximum-generations (atom 50))
@@ -312,14 +313,26 @@
     :koza (select-node-90-10 tree)
     ))
 
-(defn depth
+(defn tag-depth
+  "Depth measure that accounts for tags."
   [expression]
   (if (not (seq? expression))
     0
     (let [subsequences (filter seq? expression)]
       (if (empty? subsequences)
         1
-        (inc (apply max (map depth subsequences)))))))
+        (inc (apply max (map tag-depth subsequences)))))))
+
+(defn depth
+  "Depth measure that disregards tags."
+  [expression]
+  (if (not (seq? expression))
+    0
+    (let [subsequences (filter seq? expression)
+          effective-depth (if (map? (first expression)) 0 1)]
+      (if (empty? subsequences)
+        effective-depth
+        (+ effective-depth (apply max (map depth subsequences)))))))
 
 (defn mutate
   [i]
@@ -327,7 +340,8 @@
                 i 
                 (select-node i)
                 (random-code (ramp-depth) (if (< (rand) 0.5) :grow :full)))]
-    (if (> (depth child) @absolute-depth-limit)
+    (if (or (> (depth child) @absolute-depth-limit)
+            (> (tag-depth child) @tag-depth-limit))
       i
       child)))
 
@@ -337,7 +351,8 @@
                 i 
                 (select-node i)
                 (at-index j (select-node j)))]
-    (if (> (depth child) @absolute-depth-limit)
+    (if (or (> (depth child) @absolute-depth-limit)
+            (> (tag-depth child) @tag-depth-limit))
       i
       child)))
 
@@ -387,6 +402,7 @@
   (println "max-generations =" @maximum-generations)
   (println "single-thread-mode =" @single-thread-mode)
   (println "absolute-depth-limit =" @absolute-depth-limit)
+  (println "tag-depth-limit =" @tag-depth-limit)
   (println "reproductive-tournament-size =" @reproductive-tournament-size)
   (println "mutation-probability =" @mutation-fraction)
   (println "crossover-probability =" @crossover-fraction)
@@ -403,6 +419,7 @@
       (println "Best program:" (first (first sorted)))
       (println "Best program size:" (codesize (first (first sorted))))
       (println "Best program depth:" (depth (first (first sorted))))
+      (println "Best program tag-depth:" (tag-depth (first (first sorted))))
       (println "     Median error:" (second (nth sorted 
                                                  (int (/ @population-size 2)))))
       (println "     Average program size:" 
@@ -410,6 +427,9 @@
                          (count population))))
       (println "     Average program depth:" 
                (float (/ (reduce + (map depth (map first population)))
+                         (count population))))
+      (println "     Average program tag-depth:" 
+               (float (/ (reduce + (map tag-depth (map first population)))
                          (count population))))
       (println "     Tag call ratio:"
                (float (/ (count (filter :tag (filter map? (flatten (map first population)))))
@@ -466,8 +486,12 @@
 		       :mutation-fraction 0.05
 		       :crossover-fraction 0.9
 		       :reproductive-tournament-size 7
-                       :disallow-tagged-recursion true}
+                       :disallow-tagged-recursion true
+                       :absolute-depth-limit 17
+                       :tag-depth-limit 17}
                       (apply hash-map (map read-string params)))]
+    (reset! absolute-depth-limit (:absolute-depth-limit params))
+    (reset! tag-depth-limit (:tag-depth-limit params))
     (reset! allow-tagging (:allow-tagging params))
     (reset! tagdo-semantics (:tagdo-semantics params))
     (reset! tagged-with-args (:tagged-with-args params))
