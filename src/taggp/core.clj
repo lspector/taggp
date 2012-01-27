@@ -48,6 +48,35 @@
 (def successful-individual? ;; Predicate to test for success (in an atom)
   (atom (fn [individual] (zero? (second individual)))))
 
+(def random-seed (atom (System/nanoTime)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; random code generator
+
+(def ^:dynamic *thread-local-random-generator* (new java.util.Random))
+
+(defn lrand-int
+  "Return a random integer, using the thread-local random generator, that is less than the
+provided n. Arguments greater than 2^31-1 are treated as if they were 2^31-1 (2147483647)."
+  [n]
+  (if (<= n 1)
+    0
+    (if (integer? n)
+      (. *thread-local-random-generator* (nextInt n))
+      (. *thread-local-random-generator* (nextInt java.lang.Integer/MAX_VALUE))))) ;; biggest java.lang.Integer
+
+(defn lrand
+  "Return a random float between 0 and 1 usng the thread-local random generator."
+  ([] (. *thread-local-random-generator* (nextFloat)))
+  ([n] (* n (lrand))))
+
+(defn lrand-nth
+  "Return a random element of the collection."  
+  [coll]
+  (nth coll (. *thread-local-random-generator* (nextInt (count coll)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defn closest-association
   "Returns the value for the closest match to the given tag in the given tag space, with
    default-value returned if the tag-space is empty."
@@ -198,19 +227,19 @@
 (defn expand-erc
   [item]
   (cond (= item :int-erc) (+ (first @int-erc-range) 
-                             (rand-int (inc (- (second @int-erc-range)
+                             (lrand-int (inc (- (second @int-erc-range)
                                                (first @int-erc-range)))))
         (= item :float-erc) (+ (first @float-erc-range) 
-                               (* (rand)
+                               (* (lrand)
                                   (- (second @float-erc-range)
                                      (first @float-erc-range))))
         :else item))
 
 (defn expand-erf
   [item]
-  (cond (= item :tag-erf) {:tag (rand-int @tag-limit)}
-        (= item :tagged-erf) {:tagged (rand-int @tag-limit)}
-        (= item :tagged-with-args-erf) {:tagged-with-args (rand-int @tag-limit)}
+  (cond (= item :tag-erf) {:tag (lrand-int @tag-limit)}
+        (= item :tagged-erf) {:tagged (lrand-int @tag-limit)}
+        (= item :tagged-with-args-erf) {:tagged-with-args (lrand-int @tag-limit)}
         :else item))
 
 ;; random code generator from the GP field guide p 14
@@ -225,9 +254,9 @@
   [depth-limit method] ;; method should be :grow or :full
   (if (or (= depth-limit 0)
           (and (= method :grow)
-               (< (rand) @terminal-proportion)))
-    (expand-erc (rand-nth @terminal-set))
-    (let [f (expand-erf (rand-nth (keys @function-table)))]
+               (< (lrand) @terminal-proportion)))
+    (expand-erc (lrand-nth @terminal-set))
+    (let [f (expand-erf (lrand-nth (keys @function-table)))]
       (cons f (repeatedly (if (map? f)
                             (cond (:tagged f) 0 
                                   (:tag f) 1
@@ -256,7 +285,7 @@
   [x]
   (if (< x 0) (- x) x))
 
-(defn ramp-depth [] (rand-nth (apply range @ramp-depth-range)))
+(defn ramp-depth [] (lrand-nth (apply range @ramp-depth-range)))
 
 (defn codesize [c]
   (if (seq? c)
@@ -309,16 +338,16 @@
   (let [annotated (annotate-points tree)
         internals (map first (filter #(= (second %) :internal) annotated))
         leaves (map first (filter #(= (second %) :leaf) annotated))]
-    (cond (empty? internals) (rand-nth leaves)
-          (empty? leaves)    (rand-nth internals)
-          (< (rand) 0.9)     (rand-nth internals)
-          :else              (rand-nth leaves))))
+    (cond (empty? internals) (lrand-nth leaves)
+          (empty? leaves)    (lrand-nth internals)
+          (< (lrand) 0.9)     (lrand-nth internals)
+          :else              (lrand-nth leaves))))
 
 (defn select-node-by-tournament
   "returns an index"
   [tree]
   (let [num-nodes (codesize tree)
-        tournament-set (repeatedly @node-tournament-size #(rand-int num-nodes))]
+        tournament-set (repeatedly @node-tournament-size #(lrand-int num-nodes))]
     (ffirst (sort #(> (first %1) (first %2))
                   (map #(vector % (codesize (at-index tree %))) tournament-set)))))
     
@@ -355,7 +384,7 @@
   (let [child (insert-at-index 
                 i 
                 (select-node i)
-                (random-code (ramp-depth) (if (< (rand) 0.5) :grow :full)))]
+                (random-code (ramp-depth) (if (< (lrand) 0.5) :grow :full)))]
     (if (or (> (depth child) @absolute-depth-limit)
             (> (tag-depth child) @tag-depth-limit))
       i
@@ -402,7 +431,7 @@
                          tournament-size 
                          #(nth prog-err-pairs
                                (mod (+ location 
-                                       (- (rand-int (inc (* radius 2))) 
+                                       (- (lrand-int (inc (* radius 2))) 
                                           radius))
                                     limit)))]
     (first (first (sort #(< (second %1) (second %2)) (vec tournament-set))))))
@@ -422,70 +451,72 @@
   (println "reproductive-tournament-size =" @reproductive-tournament-size)
   (println "mutation-probability =" @mutation-fraction)
   (println "crossover-probability =" @crossover-fraction)
-  (println "tag-limit =" @tag-limit)  
-  (update-terminal-proportion)
-  (println "Starting evolution...")
-  (loop [generation 0
-         population (pair-with-errors 
-                      (concat (repeatedly (/ @population-size 2) #(random-code (ramp-depth) :grow))
-                              (repeatedly (/ @population-size 2) #(random-code (ramp-depth) :full))))]
-    (let [sorted (sort #(< (second %1) (second %2)) population)]
-      (println "Generation:" generation)
-      (println "Best error:" (second (first sorted)))
-      (println "Best program:" (first (first sorted)))
-      (println "Best program size:" (codesize (first (first sorted))))
-      (println "Best program depth:" (depth (first (first sorted))))
-      (println "Best program tag-depth:" (tag-depth (first (first sorted))))
-      (println "     Median error:" (second (nth sorted 
-                                                 (int (/ @population-size 2)))))
-      (println "     Average program size:" 
-               (float (/ (reduce + (map codesize (map first population)))
-                         (count population))))
-      (println "     Average program depth:" 
-               (float (/ (reduce + (map depth (map first population)))
-                         (count population))))
-      (println "     Average program tag-depth:" 
-               (float (/ (reduce + (map tag-depth (map first population)))
-                         (count population))))
-      (println "     Tag call ratio:"
-               (float (/ (count (filter :tag (filter map? (flatten (map first population)))))
-                         (count (flatten (map first population))))))
-      (println "     Tagged call ratio:"
-               (float (/ (count (filter :tagged (filter map? (flatten (map first population)))))
-                         (count (flatten (map first population))))))
-      (println "     Tagged-with-args call ratio:"
-               (float (/ (count (filter :tagged-with-args (filter map? (flatten (map first population)))))
-                         (count (flatten (map first population))))))
-      (println "     Unique error values in population:"
-               (count (distinct (map second population))))
-      (let [tag-using-pgms (map second (filter (fn [[p e]]
-                                                 (some (fn [item]
-                                                         (or (:tagged item)
-                                                             (:tagged-with-args item)))
-                                                       (flatten p)))
-                                               population))]
-        (println "     Number of programs that may retrieve tags:" (count tag-using-pgms))
-        (println "     Number of these that exceed limit penalty:"
-                 (count (filter #(>= % @penalty-for-exceeding-limit)
-                                tag-using-pgms))))
-      (if (@successful-individual? (first sorted))
-        (println "Success:" (first (first sorted)))
-        (if (>= generation @maximum-generations)
-          (println "Failure")
-          (recur 
-            (inc generation)
-            (pair-with-errors
-              (for [i (range @population-size)]
-                (let [operator (rand)
-                      tsize @reproductive-tournament-size
-                      radius @trivial-geography-radius]
-                  (cond (< operator 
-                           @mutation-fraction)      (mutate (select population tsize i radius))
-                        (< operator 
-                           (+ @mutation-fraction 
-                              @crossover-fraction)) (crossover (select population tsize i radius)
-                                                               (select population tsize i radius))
-                        :else (select population tsize i radius)))))))))))
+  (println "tag-limit =" @tag-limit)
+  (println "random-seed =" @random-seed)
+  (binding [*thread-local-random-generator* (java.util.Random. @random-seed)]
+    (update-terminal-proportion)
+    (println "Starting evolution...")
+    (loop [generation 0
+	   population (pair-with-errors 
+			(concat (repeatedly (/ @population-size 2) #(random-code (ramp-depth) :grow))
+				(repeatedly (/ @population-size 2) #(random-code (ramp-depth) :full))))]
+      (let [sorted (sort #(< (second %1) (second %2)) population)]
+	(println "Generation:" generation)
+	(println "Best error:" (second (first sorted)))
+	(println "Best program:" (first (first sorted)))
+	(println "Best program size:" (codesize (first (first sorted))))
+	(println "Best program depth:" (depth (first (first sorted))))
+	(println "Best program tag-depth:" (tag-depth (first (first sorted))))
+	(println "     Median error:" (second (nth sorted 
+						   (int (/ @population-size 2)))))
+	(println "     Average program size:" 
+		 (float (/ (reduce + (map codesize (map first population)))
+			   (count population))))
+	(println "     Average program depth:" 
+		 (float (/ (reduce + (map depth (map first population)))
+			   (count population))))
+	(println "     Average program tag-depth:" 
+		 (float (/ (reduce + (map tag-depth (map first population)))
+			   (count population))))
+	(println "     Tag call ratio:"
+		 (float (/ (count (filter :tag (filter map? (flatten (map first population)))))
+			   (count (flatten (map first population))))))
+	(println "     Tagged call ratio:"
+		 (float (/ (count (filter :tagged (filter map? (flatten (map first population)))))
+			   (count (flatten (map first population))))))
+	(println "     Tagged-with-args call ratio:"
+		 (float (/ (count (filter :tagged-with-args (filter map? (flatten (map first population)))))
+			   (count (flatten (map first population))))))
+	(println "     Unique error values in population:"
+		 (count (distinct (map second population))))
+	(let [tag-using-pgms (map second (filter (fn [[p e]]
+						   (some (fn [item]
+							   (or (:tagged item)
+							       (:tagged-with-args item)))
+							 (flatten p)))
+						 population))]
+	  (println "     Number of programs that may retrieve tags:" (count tag-using-pgms))
+	  (println "     Number of these that exceed limit penalty:"
+		   (count (filter #(>= % @penalty-for-exceeding-limit)
+				  tag-using-pgms))))
+	(if (@successful-individual? (first sorted))
+	  (println "Success:" (first (first sorted)))
+	  (if (>= generation @maximum-generations)
+	    (println "Failure")
+	    (recur 
+	     (inc generation)
+	     (pair-with-errors
+	       (for [i (range @population-size)]
+		 (let [operator (lrand)
+		       tsize @reproductive-tournament-size
+		       radius @trivial-geography-radius]
+		   (cond (< operator 
+			    @mutation-fraction)      (mutate (select population tsize i radius))
+			    (< operator 
+			       (+ @mutation-fraction 
+				  @crossover-fraction)) (crossover (select population tsize i radius)
+			       (select population tsize i radius))
+			    :else (select population tsize i radius))))))))))))
 
 ;(evolve)
 
@@ -504,8 +535,10 @@
 		       :reproductive-tournament-size 7
                        :disallow-tagged-recursion true
                        :absolute-depth-limit 17
-                       :tag-depth-limit 17}
+                       :tag-depth-limit 17
+		       :random-seed (rand-int Integer/MAX_VALUE)}
                       (apply hash-map (map read-string params)))]
+    (reset! random-seed (:random-seed params))
     (reset! absolute-depth-limit (:absolute-depth-limit params))
     (reset! tag-depth-limit (:tag-depth-limit params))
     (reset! allow-tagging (:allow-tagging params))
