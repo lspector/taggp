@@ -48,7 +48,7 @@
 (def successful-individual? ;; Predicate to test for success (in an atom)
   (atom (fn [individual] (zero? (second individual)))))
 
-(def random-seed (atom (System/nanoTime)))
+(def random-seed (atom (rand-int Integer/MAX_VALUE)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; random code generator
