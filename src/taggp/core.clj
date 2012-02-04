@@ -385,6 +385,16 @@
                          (count (flatten (map first population))))))
       (println "     Unique error values in population:"
                (count (distinct (map second population))))
+      (let [tag-using-pgms (map second (filter (fn [[p e]] 
+                                                 (some (fn [item]
+                                                         (or (:tagged item)
+                                                             (:tagged-with-args item)))
+                                                       (flatten p)))
+                                               population))]
+        (println "     Number of programs that may retrieve tags:" (count tag-using-pgms))
+        (println "     Number of these that exceed limit penalty:"
+                 (count (filter #(>= % @penalty-for-exceeding-limit) 
+                                tag-using-pgms))))
       (if (@successful-individual? (first sorted))
         (println "Success:" (first (first sorted)))
         (if (>= generation @maximum-generations)
