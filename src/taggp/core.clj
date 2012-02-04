@@ -273,7 +273,7 @@
   [tree]
   (let [num-nodes (codesize tree)
         tournament-set (repeatedly @node-tournament-size #(rand-int num-nodes))]
-    (ffirst (sort #(> (first %1) (first %2))
+    (ffirst (sort #(> (second %1) (second %2))
                   (map #(vector % (codesize (at-index tree %))) tournament-set)))))
     
 (defn select-node
