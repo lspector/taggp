@@ -65,7 +65,11 @@
 			      (let [lookup (closest-association some-tag ts default-value :tag)]
 				(recur (dissoc ts lookup)))
 			      ts))
-	(= method :replace) (throw (Exception. "Replace not yet implemented"))))
+	(= method :replace) (loop [ts tag-space]
+			      (if (detect-recursion ts some-tag default-value)
+				(let [lookup (closest-association some-tag ts default-value :tag)]
+				  (recur (assoc ts lookup default-value)))
+				ts))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; EVALUATION ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
