@@ -4,7 +4,7 @@
 (ns taggp.examples.lawnmower
   (:use [taggp.core :exclude [-main]]))			      
 
-(in-ns 'taggp.core)
+(in-ns 'taggp.random)
 
 (def lawn-size (atom {:x 8 :y 8}))
 (defn expand-erc
@@ -21,7 +21,8 @@
         :else item))
 
 (in-ns 'taggp.examples.lawnmower)
-(use '[taggp.core :exclude [-main]])
+(use '[taggp.core :exclude [-main]]
+     '[taggp tags globals random])
 
 (defn make-lawn
   [max-size limit]
@@ -110,8 +111,7 @@
   "Error for the *lawn*mower problem."
   [size limit individual]
   (binding [*lawn* (make-lawn size limit)]
-    (let [result (eval-with-tagging individual @execution-limit {} {:x 0 :y 0})])
-    (- (* (:x size) (:y size))
+    (let [result (eval-with-tagging individual @execution-limit {} {:x 0 :y 0})])    (- (* (:x size) (:y size))
        (count (:mowed *lawn*)))))
 
 (defn run

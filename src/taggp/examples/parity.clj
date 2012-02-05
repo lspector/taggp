@@ -1,5 +1,7 @@
 (ns taggp.examples.parity
-  (:use [taggp.core :exclude [-main]]))
+  (:use [taggp.core :exclude [-main]]
+	[taggp.tags]
+	[taggp.globals]))
 
 ;;; even-6-parity
 ;
