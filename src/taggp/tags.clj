@@ -162,9 +162,15 @@
 			     (loop [rem (rest expr) ts ts step step results []]
 			       (if (empty? rem) results
 				   (if (<= step 0)
-				     (recur (rest rem) ts step (conj results [:limit-exceeded ts step]))
+				     (recur (rest rem)
+					    ts
+					    step
+					    (conj results [:limit-exceeded ts step]))
 				     (let [first-result (eval-with-tagging (first rem) ts step constants default-value)]
-				       (recur (rest rem) (nth first-result 1) (nth first-result 2) (conj results first-result))))))
+				       (recur (rest rem)
+					      (nth first-result 1)
+					      (nth first-result 2)
+					      (conj results first-result))))))
 			     vals (map first arg-evaluation-results)
 			     ending-limit (nth (last arg-evaluation-results) 2)
 			     ending-ts (nth (last arg-evaluation-results) 1)]
