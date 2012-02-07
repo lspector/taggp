@@ -144,27 +144,27 @@
 				      (assoc ts (:tag (first expr)) (second expr))
 				      (dec step))
 		 (tagdont? expr) [default-value (assoc ts (:tag (first expr)) (second expr)) step]
-		 (tagged-args? expr)
-		    (let [new-expr (clojure.walk/postwalk-replace (make-argmap 10 default-value)
-								  (closest-association (:tagged-with-args (first expr)) ts default-value))]
-		      (recur new-expr
-			     ts
-			     (dec step)))
-		 (if? expr)
-		    (let [condition-eval-result (eval-with-tagging (second expr) ts step constants default-value)]
-		      (if (first condition-eval-result)
-			(recur (nth expression 2) 
-			       (nth condition-eval-result 1)
-			       (nth condition-eval-result 2))
-			(recur (nth expression 3) 
-			       (nth condition-eval-result 1)
-			       (nth condition-eval-result 2))))
-		 :else (let [arg-evaluation-results (loop [rem (rest expr) ts ts step step results []]
-						      (if (empty? rem) results
-							  (if (<= step 0)
-							    (recur (rest rem) ts step (conj results [:limit-exceeded ts step]))
-							    (let [first-result (eval-with-tagging (first rem) ts step constants default-value)]
-							      (recur (rest rem) (nth first-result 1) (nth first-result 2) (conj results first-result))))))
+		 (tagged-args? expr) (let [new-expr (clojure.walk/postwalk-replace
+						     (make-argmap 10 default-value)
+						     (closest-association (:tagged-with-args (first expr)) ts default-value))]
+				       (recur new-expr
+					      ts
+					      (dec step)))
+		 (if? expr) (let [condition-eval-result (eval-with-tagging (second expr) ts step constants default-value)]
+			      (if (first condition-eval-result)
+				(recur (nth expression 2) 
+				       (nth condition-eval-result 1)
+				       (nth condition-eval-result 2))
+				(recur (nth expression 3) 
+				       (nth condition-eval-result 1)
+				       (nth condition-eval-result 2))))
+		 :else (let [arg-evaluation-results
+			     (loop [rem (rest expr) ts ts step step results []]
+			       (if (empty? rem) results
+				   (if (<= step 0)
+				     (recur (rest rem) ts step (conj results [:limit-exceeded ts step]))
+				     (let [first-result (eval-with-tagging (first rem) ts step constants default-value)]
+				       (recur (rest rem) (nth first-result 1) (nth first-result 2) (conj results first-result))))))
 			     vals (map first arg-evaluation-results)
 			     ending-limit (nth (last arg-evaluation-results) 2)
 			     ending-ts (nth (last arg-evaluation-results) 1)]
