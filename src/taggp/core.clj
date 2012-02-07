@@ -5,8 +5,6 @@
 
 ;; REQUIRES Clojure 1.3 for the concurrency to work (set single-thread-mode to true otherwise)
 ;; TODO
-;; - make sure that using the logger doesn't write to the same stream due to lein/ant
-;; - get rid of recursion in random code and make it a multimethod
 ;; - recursion elimination on included for tagdo true (need to add for tagdont?)
 ;; - add check-globals to main
 ;; - consider getting rid of recursive calls for arguments in taggp.tags
@@ -22,10 +20,12 @@
 	[taggp.random]
 	[taggp.util util gp]
 	))
-  
+
+(def globals (keys (ns-publics 'taggp.globals)))
+
 (defn check-globals [keys]
   (if-let [unrecognized-keys (seq (set/difference (set keys)
-						  (set (map keyword (keys (ns-publics 'taggp.globals))))))]
+						  (set (map keyword globals))))]
     (log/warn (str "unrecognized-keys : " unrecognized-keys))
     'ok))
 
@@ -48,12 +48,8 @@
   (vec (pmapall #(vector % (@error-fn %)) programs)))
 
 (defn evolve []
-  (println "allow-tagging =" @allow-tagging)
-  (println "tagdo-semantics =" @tagdo-semantics)
-  (println "use-noops =" @use-noops)
-  (println "trivial-geography-radius =" @trivial-geography-radius)
-  (println "population-size =" @population-size)
-  (println "max-generations =" @maximum-generations)  
+  (doseq [k globals]
+    (println (str k " = " @@(resolve k))))
   (update-terminal-proportion)
   (println "Starting evolution...")
   (loop [generation 0

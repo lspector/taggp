@@ -7,19 +7,19 @@
 
 (defn tag?
   [inst]
-  (cond (symbol? inst)(= "tag" (first (s/split (name inst) #"_")))
-	(map? inst) (= :tag (ffirst (seq inst)))))
+  (and (map? inst)
+       (= :tag (ffirst (seq inst)))))
 
 (defn tagged?
   [inst]
-  (cond (symbol? inst)(= "tagged" (first (s/split (name inst) #"_")))
-	(map? inst)(some #(= % (ffirst (seq inst))) '(:tagged :tagged-with-args))))
+  (and (map? inst)
+       (or (= (ffirst (seq inst)) :tagged)
+	   (= (ffirst (seq inst)) :tagged-with-args))))
 
 (defn get-tag-id
   [inst]
   (assert (or (tag? inst) (tagged? inst)) "Not a tag instruction")
-  (cond (map? inst) (second (first inst))
-	(symbol? inst) (throw (Exception. "tag-id parsing not written for symbol"))))
+  (and (map? inst) (second (first inst))))
 
 
 
@@ -32,7 +32,7 @@
   ([tag tag-space default-value return-item]
      (if (empty? tag-space)
        default-value
-       (loop [associations (conj (vec tag-space) (first tag-space))] ;; conj does wrap
+       (loop [associations (concat tag-space (list (first tag-space)))] ;; conj does wrap
 	 (if (or (empty? (rest associations))
 		 (<= tag (ffirst associations)))
 	   (cond (= :tagged return-item) (second (first associations))
@@ -48,28 +48,34 @@
 
 (defn detect-recursion
   [tag-space this-tag default-value]
-  (loop [ct (count tag-space)
-	 tags (map get-tag-id (filter tagged? (flatten (closest-association this-tag tag-space default-value))))]
-    (and (not (zero? ct))
-	 (let [tag-refers (map #(closest-association % tag-space default-value :tag) (set tags))]
-	   (or (some #(= % this-tag) tag-refers)
-	       (recur (dec ct)
-		      (map get-tag-id (filter tagged? (flatten (map #(closest-association % tag-space default-value :tagged) tag-refers))))))))))
+  (let [[tag code] (closest-association this-tag tag-space default-value :both)]
+    (loop [ct (count tag-space)
+	   tags (map get-tag-id (filter tagged? (flatten code)))]
+      (and (not (zero? ct))
+	   (let [tag-refers (map #(closest-association % tag-space default-value :tag) (set tags))]
+	     (or (some #(= % tag) tag-refers)
+		 (recur (dec ct)
+			(map get-tag-id
+			     (filter tagged?
+				     (flatten
+				      (map #(closest-association % tag-space default-value :tagged)
+					   tag-refers)))))))))))
 
-;; this should be a multimethod
-(defn eliminate-recursion
-  [tag-space some-tag method default-value]
-  (cond (= method :none) tag-space
-	(= method :untag) (loop [ts tag-space]
-			    (if (detect-recursion ts some-tag default-value)
-			      (let [lookup (closest-association some-tag ts default-value :tag)]
-				(recur (dissoc ts lookup)))
-			      ts))
-	(= method :replace) (loop [ts tag-space]
-			      (if (detect-recursion ts some-tag default-value)
-				(let [lookup (closest-association some-tag ts default-value :tag)]
-				  (recur (assoc ts lookup default-value)))
-				ts))))
+(defn eliminate-recursion  [tag-space some-tag default-value]
+  (cond (= @recursion-elimination-method :none)
+	   tag-space
+	(= @recursion-elimination-method :untag)
+	   (loop [ts tag-space]
+	     (if (detect-recursion ts some-tag default-value)
+	       (let [lookup (closest-association some-tag ts default-value :tag)]
+		 (recur (dissoc ts lookup)))
+	       ts))
+	(= @recursion-elimination-method :replace)
+	   (loop [ts tag-space]
+	     (if (detect-recursion ts some-tag default-value)
+	       (let [lookup (closest-association some-tag ts default-value :tag)]
+		 (recur (assoc ts lookup default-value)))
+	       ts))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; EVALUATION ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -86,7 +92,7 @@
   (and (= 1 (count expr))
        (contains? (set (keys (ns-publics *ns*))) (first expr))))
 
-(defn tag-no-args? [expr]
+(defn tagged-no-args? [expr]
   (and (= 1 (count expr))
        (map? (first expr))))
 
@@ -98,7 +104,7 @@
   (and (:tag (first expr))
        (not @tagdo-semantics)))
 
-(defn tagargs? [expr]
+(defn tagged-args? [expr]
   (and (map? (first expr))
        (not (:tag (first expr)))))
 
@@ -131,29 +137,28 @@
 	   [:limit-exceeded ts step]
 	   (cond (constant? expr) [(get constants expr expr) ts step]
 		 (env-fn? expr) [((resolve (first expr))) ts step]
-		 (tag-no-args? expr) (recur (closest-association (:tagged (first expr)) ts default-value)
-					    ts
-					    step)
+		 (tagged-no-args? expr) (recur (closest-association (:tagged (first expr)) ts default-value)
+					       ts
+					       (dec step))
 		 (tagdo? expr) (recur (second expr)
-				      (eliminate-recursion
-				       (assoc ts (:tag (first expr)) (second expr))
-				       (:tag (first expr))
-				       :untag
-				       default-value)
-				      step)
+				      (assoc ts (:tag (first expr)) (second expr))
+				      (dec step))
 		 (tagdont? expr) [default-value (assoc ts (:tag (first expr)) (second expr)) step]
-		 (tagargs? expr) (recur (clojure.walk/postwalk-replace (make-argmap 10 default-value)
-								       (closest-association (:tagged-with-args (first expr)) ts default-value))
-					ts
-					step)
-		 (if? expr) (let [condition-eval-result (eval-with-tagging (second expr) ts step constants default-value)]
-			      (if (first condition-eval-result)
-			 	(recur (nth expression 2) 
-                                       (nth condition-eval-result 1)
-                                       (nth condition-eval-result 2))
-				(recur (nth expression 3) 
-                                       (nth condition-eval-result 1)
-                                       (nth condition-eval-result 2))))
+		 (tagged-args? expr)
+		    (let [new-expr (clojure.walk/postwalk-replace (make-argmap 10 default-value)
+								  (closest-association (:tagged-with-args (first expr)) ts default-value))]
+		      (recur new-expr
+			     ts
+			     (dec step)))
+		 (if? expr)
+		    (let [condition-eval-result (eval-with-tagging (second expr) ts step constants default-value)]
+		      (if (first condition-eval-result)
+			(recur (nth expression 2) 
+			       (nth condition-eval-result 1)
+			       (nth condition-eval-result 2))
+			(recur (nth expression 3) 
+			       (nth condition-eval-result 1)
+			       (nth condition-eval-result 2))))
 		 :else (let [arg-evaluation-results (loop [rem (rest expr) ts ts step step results []]
 						      (if (empty? rem) results
 							  (if (<= step 0)
@@ -188,4 +193,12 @@
     (assert (not (detect-recursion tag-space-6 this-tag :identity)) tag-space-6)
     (detect-recursion tag-space-0 this-tag :identity))
   (defn- test-eliminate-recursion []
-    (eliminate-recursion tag-space-1 this-tag :untag :identity)))
+    (let [method @recursion-elimination-method]
+      (reset! recursion-elimination-method :untag)
+      (assert (= (eliminate-recursion tag-space-0 this-tag :identity) {}))
+      (assert (= (eliminate-recursion tag-space-1 this-tag 'asdf) {}))
+      (assert (= (eliminate-recursion tag-space-2 this-tag 'asdf) tag-space-2))
+;;      (assert (= (eliminate-recursion tag-space-3 this-tag 'asdf) (dissoc tag-space-3 
+      (println tag-space-3 this-tag)
+      (eliminate-recursion tag-space-3 this-tag 'asdf)
+     )))
