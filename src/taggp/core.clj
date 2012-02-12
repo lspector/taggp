@@ -48,7 +48,7 @@
   (vec (pmapall #(vector % (@error-fn %)) programs)))
 
 (defn evolve []
-  (doseq [k globals]
+  (doseq [k (sort globals)]
     (println (str k " = " @@(resolve k))))
   (update-terminal-proportion)
   (println "Starting evolution...")
