@@ -77,15 +77,11 @@
   (use 'taggp.tags :reload)
   (use 'taggp.core :reload)
 ;;;;
-  (set! *warn-on-reflection* true)
-  (let [params (merge {:allow-tagging true
-                       :tagdo-semantics true
-                       :use-noops true}
-                      (apply hash-map (map read-string params)))]
-    (println "target-data =" target-data)
-    (doseq [[k v] params]
-      (if (contains? (set globals) (symbol (name k)))
-	(reset! (deref (resolve (symbol (name k)))) v)
-	(log/warn (str "Unrecognized key " k)))))
-    (run)
-    (System/exit 0))
+;;  (set! *warn-on-reflection* true)
+  (parse-parameters params
+		    {:allow-tagging true
+		     :tagdo-semantics true
+		     :use-noops true})
+  (println "target-data =" target-data)
+  (run)
+  (System/exit 0))
