@@ -24,7 +24,7 @@ Experimental features are placed in the src/taggp/exp directory. All modificatio
 
 See [recursion.clj](https://github.com/lspector/taggp/blob/refactor/src/taggp/exp/recursion.clj) for an example of how to write experimental features.
 
-See the main of <a href="https://github.com/lspector/taggp/blob/refactor/src/taggp/examples/parity.clj">parity.clj</a> for how to test experimental features in example problems.
+See the main of [parity.clj](https://github.com/lspector/taggp/blob/refactor/src/taggp/examples/parity.clj#L74) for how to test experimental features in example problems.
 
 
 
