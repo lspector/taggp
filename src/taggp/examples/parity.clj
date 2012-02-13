@@ -1,8 +1,9 @@
 (ns taggp.examples.parity
   (:require [clojure.tools.logging :as log])
   (:use [taggp.core :exclude [-main]]
-	[taggp.tags]
-	[taggp.globals]))
+	[taggp.globals]
+	[taggp.tags]))
+
 
 ;;; even-6-parity
 ;
@@ -70,6 +71,12 @@
 (defn -main 
   [& params]
   (in-ns 'taggp.examples.parity) ;; when using lein run (= *ns* 'user) by default, we need to switch
+;;;; How to use exp 
+  (use 'taggp.exp.recursion)
+  (use 'taggp.globals :reload)
+  (use 'taggp.tags :reload)
+  (use 'taggp.core :reload)
+;;;;
   (set! *warn-on-reflection* true)
   (let [params (merge {:allow-tagging true
                        :tagdo-semantics true
