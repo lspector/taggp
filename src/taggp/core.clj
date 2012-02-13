@@ -48,7 +48,7 @@
   (vec (pmapall #(vector % (@error-fn %)) programs)))
 
 (defn evolve []
-  (doseq [k globals]
+  (doseq [k (sort globals)]
     (println (str k " = " @@(resolve k))))
   (update-terminal-proportion)
   (println "Starting evolution...")
@@ -112,3 +112,15 @@
 
 ;(evolve)
 
+(defn parse-parameters
+  "Parse parameters from command line arguments."
+  ([params other]
+     (println params (type params) other (type other))
+     (let [params (merge other (apply hash-map (map read-string params)))]
+       (doseq [[k v] params]
+	 (if (contains? (set globals) (symbol (name k)))
+	   (reset! (deref (resolve (symbol (name k)))) v)
+	   (log/warn (str "Unrecognized key " k))))
+       params))
+  ([params]
+     (parse-parameters params {})))

@@ -31,4 +31,4 @@
 (def terminal-set (atom ()))
 (def terminal-proportion (atom 0));; note: update-terminal-proportion
 (def error-fn (atom (fn [individual] 0)))
-(def recursion-elimination-method (atom :none)) ;; :none, :untag, :replace
+(def random-seed (atom (rand-int Integer/MAX_VALUE)))

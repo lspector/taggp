@@ -2,14 +2,14 @@
   (use [taggp.globals]
        [taggp.tags]))
 
-
 (in-ns 'taggp.globals)
 
-(def recursion-elimination-method (atom :none)) ;; :none, :untag, :replace
-
-
+(def recursion-elimination-method (atom :none)) ;; :none, :untag, :replace, :ignore
+(def recursion-location (atom :none)) ;; :tagged, :tag
 
 (in-ns 'taggp.tags)
+(use 'taggp.globals)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; HANDLING RECURSION ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn detect-recursion
   [tag-space this-tag default-value]
@@ -40,9 +40,75 @@
 	     (if (detect-recursion ts some-tag default-value)
 	       (let [lookup (closest-association some-tag ts default-value :tag)]
 		 (recur (assoc ts lookup default-value)))
-	       ts))))
+	       ts))
+        (= @recursion-elimination-method :ignore)
+	   (dissoc tag-space (closest-association some-tag tag-space default-value :tag))))   
+
+(defn resolve-rec [expr rec-loc default-value]
+  (if (= rec-loc @recursion-location)
+    #(eliminate-recursion % (rec-loc (first expr)) default-value)
+    identity))
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Redefine eval-with-tagging ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn eval-with-tagging
+  ([expression step-limit constants default-value]
+     (first (eval-with-tagging expression (sorted-map) step-limit constants default-value)))
+  ([expression tag-space step-limit constants default-value]
+     (let [constants (merge (make-argmap 10 default-value) constants)]
+       ;; these calls return [value tag-space steps-remaining]
+       (loop [expr expression ts tag-space step (dec step-limit)]
+	 (if (<= step 0)
+	   [:limit-exceeded ts step]
+	   (cond (constant? expr) [(get constants expr expr) ts step]
+		 (env-fn? expr) [((resolve (first expr))) ts step]
+		 (tagged-no-args? expr) (recur (closest-association (:tagged (first expr)) ts default-value)
+					       ((resolve-rec expr :tagged default-value) ts)
+					       (dec step))
+		 (tagdo? expr) (recur (second expr)
+				      ((resolve-rec expr :tag default-value) (assoc ts (:tag (first expr)) (second expr)))
+				      (dec step))
+		 (tagdont? expr) [default-value
+				  ((resolve-rec expr :tag default-value) (assoc ts (:tag (first expr)) (second expr)))
+				  step]
+		 (tagged-args? expr) (let [new-expr (clojure.walk/postwalk-replace
+						     (make-argmap 10 default-value)
+						     (closest-association (:tagged-with-args (first expr)) ts default-value))]
+				       (recur new-expr
+					      ((resolve-rec expr :tagged default-value) ts)
+					      (dec step)))
+		 (if? expr) (let [condition-eval-result (eval-with-tagging (second expr) ts step constants default-value)]
+			      (if (first condition-eval-result)
+				(recur (nth expression 2) 
+				       (nth condition-eval-result 1)
+				       (nth condition-eval-result 2))
+				(recur (nth expression 3) 
+				       (nth condition-eval-result 1)
+				       (nth condition-eval-result 2))))
+		 :else (let [arg-evaluation-results
+			     (loop [rem (rest expr) ts ts step step results []]
+			       (if (empty? rem) results
+				   (if (<= step 0)
+				     (recur (rest rem)
+					    ts
+					    step
+					    (conj results [:limit-exceeded ts step]))
+				     (let [first-result (eval-with-tagging (first rem) ts step constants default-value)]
+				       (recur (rest rem)
+					      (nth first-result 1)
+					      (nth first-result 2)
+					      (conj results first-result))))))
+			     vals (map first arg-evaluation-results)
+			     ending-limit (nth (last arg-evaluation-results) 2)
+			     ending-ts (nth (last arg-evaluation-results) 1)]
+			 (if (<= ending-limit 0)
+			   [:limit-exceeded ending-ts ending-limit]
+			   [(apply (resolve (first expr)) vals) ending-ts ending-limit]))))))))
+
+
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; TESTING ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; put these in the metadata for the funcitons
 
 (let [this-tag 42
       tagged-code '(a (d b) ({:tagged 10}))
