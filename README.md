@@ -28,12 +28,6 @@ See the main of <a href="https://github.com/lspector/taggp/blob/refactor/src/tag
 
 
 
-## TODO
-
-Move setting of globals from the example files into core.clj.
-
-
-
 ## License
 
 Distributed under the Eclipse Public License, the same as Clojure.
