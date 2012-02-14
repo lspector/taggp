@@ -64,7 +64,7 @@
 	   (if-not (= @recursion-location :tagged)
 	     (or (log/warn "recursion-location not set to :tagged ; Returning unaltered tag-space")
 		 tag-space)
-	     (dissoc tag-space (closest-association some-tag tag-space default-value :tag))))
+	     (dissoc tag-space (closest-association some-tag tag-space default-value :tag)))))
 
 (defn resolve-rec [expr rec-loc default-value]
   (if (= rec-loc @recursion-location)
