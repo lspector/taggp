@@ -1,5 +1,4 @@
 (ns taggp.exp.recursion
-  (require [clojure.tools.logging :as log])
   (use [taggp.globals]
        [taggp.tags]))
 
@@ -10,6 +9,7 @@
 
 (in-ns 'taggp.tags)
 (use 'taggp.globals)
+(require '[clojure.tools.logging :as log])
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; HANDLING RECURSION ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (declare test-detect-recursion)
