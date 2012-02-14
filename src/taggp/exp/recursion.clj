@@ -1,4 +1,5 @@
 (ns taggp.exp.recursion
+  (require [clojure.tools.logging :as log])
   (use [taggp.globals]
        [taggp.tags]))
 
@@ -11,7 +12,11 @@
 (use 'taggp.globals)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; HANDLING RECURSION ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(declare test-detect-recursion)
+(declare test-eliminate-recursion)
+
 (defn detect-recursion
+  ^{:test test-detect-recursion}
   [tag-space this-tag default-value]
   (let [[tag code] (closest-association this-tag tag-space default-value :both)]
     (loop [ct (count tag-space)
@@ -27,6 +32,21 @@
 					   tag-refers)))))))))))
 
 (defn eliminate-recursion  [tag-space some-tag default-value]
+  ^{:test test-eliminate-recursion
+    :doc "eliminates recursion according to the policy set in taggp.globals.recursion-elimination-method
+
+    :none     Returns the tag space as-is, without attempting to remove recursion.
+
+    :untag    Checks to see whether any tagged code, if it were looked up using the current
+      tag space, would produce recursion. If so, tag that is looked up is removed from the
+      tag space.
+
+    :replace  Replaces the tag that is found with closest-association for some-tag with a
+      default value; this should be called only in cases where recursion is eliminated
+      during tag lookup.
+
+    :remove   Removes the tag that is found using closest-assocaition for some-tag
+      from the tag-space."}
   (cond (= @recursion-elimination-method :none)
 	   tag-space
 	(= @recursion-elimination-method :untag)
@@ -36,13 +56,15 @@
 		 (recur (dissoc ts lookup)))
 	       ts))
 	(= @recursion-elimination-method :replace)
-	   (loop [ts tag-space]
-	     (if (detect-recursion ts some-tag default-value)
-	       (let [lookup (closest-association some-tag ts default-value :tag)]
-		 (recur (assoc ts lookup default-value)))
-	       ts))
-        (= @recursion-elimination-method :ignore)
-	   (dissoc tag-space (closest-association some-tag tag-space default-value :tag))))   
+	   (if-not (= @recursion-location :tagged)
+	     (or (log/warn "recursion-location not set to :tagged ; Returning unaltered tag-space")
+		 tag-space)
+	     (assoc tag-space (closest-association some-tag tag-space default-value) default-value))
+	(= @recursion-elimination-method :remove)
+	   (if-not (= @recursion-location :tagged)
+	     (or (log/warn "recursion-location not set to :tagged ; Returning unaltered tag-space")
+		 tag-space)
+	     (dissoc tag-space (closest-association some-tag tag-space default-value :tag))))
 
 (defn resolve-rec [expr rec-loc default-value]
   (if (= rec-loc @recursion-location)
@@ -136,4 +158,5 @@
 ;;      (assert (= (eliminate-recursion tag-space-3 this-tag 'asdf) (dissoc tag-space-3 
       (println tag-space-3 this-tag)
       (eliminate-recursion tag-space-3 this-tag 'asdf)
-     )))
+      )))
+			   
