@@ -13,12 +13,14 @@
   (:require [clojure.zip :as zip]
             [clojure.walk :as walk]
 	    [clojure.tools.logging :as log]
+	    [clojure.string :as s]
 	    [clojure.set :as set])
   (:use [taggp.globals]
 	[taggp.operators select mutate crossover]
 	[taggp.tags]
 	[taggp.random]
 	[taggp.util util gp]
+	[taggp.output-data population tagging]
 	))
 
 (def globals (keys (ns-publics 'taggp.globals)))
@@ -47,6 +49,15 @@
   (println "Computing errors...")
   (vec (pmapall #(vector % (@error-fn %)) programs)))
 
+(defn parse-output-data-name
+  [fn]
+  (s/capitalize
+   (str (s/join " " (s/split (if (var? fn)
+			       (str (:name (meta fn)))
+			       (name fn))
+			     #"-"))
+	":")))
+
 (defn evolve []
   (doseq [k (sort globals)]
     (println (str k " = " @@(resolve k))))
@@ -58,39 +69,18 @@
 			      (repeatedly (/ @population-size 2) #(random-code (ramp-depth) :full))))]
     (let [sorted (sort #(< (second %1) (second %2)) population)]
       (println "Generation:" generation)
-      (println "Best error:" (second (first sorted)))
-      (println "Best program:" (first (first sorted)))
-      (println "Best program size:" (codesize (first (first sorted))))
-      (println "Best program depth:" (depth (first (first sorted))))
-      (println "     Median error:" (second (nth sorted 
-                                                 (int (/ @population-size 2)))))
-      (println "     Average program size:" 
-               (float (/ (reduce + (map codesize (map first population)))
-                         (count population))))
-      (println "     Average program depth:" 
-               (float (/ (reduce + (map depth (map first population)))
-                         (count population))))
-      (println "     Tag call ratio:"
-               (float (/ (count (filter :tag (filter map? (flatten (map first population)))))
-                         (count (flatten (map first population))))))
-      (println "     Tagged call ratio:"
-               (float (/ (count (filter :tagged (filter map? (flatten (map first population)))))
-                         (count (flatten (map first population))))))
-      (println "     Tagged-with-args call ratio:"
-               (float (/ (count (filter :tagged-with-args (filter map? (flatten (map first population)))))
-                         (count (flatten (map first population))))))
-      (println "     Unique error values in population:"
-               (count (distinct (map second population))))
+      ;;; Report population and best individual data
+      (doseq [data-fn (vals (ns-publics 'taggp.output-data.population))]
+	(printf "%s %s\n" (parse-output-data-name data-fn) (data-fn sorted)))
+      ;;; Report tag-related data
       (let [tag-using-pgms (map second (filter (fn [[p e]] 
                                                  (some (fn [item]
                                                          (or (:tagged item)
                                                              (:tagged-with-args item)))
                                                        (flatten p)))
                                                population))]
-        (println "     Number of programs that may retrieve tags:" (count tag-using-pgms))
-        (println "     Number of these that exceed limit penalty:"
-                 (count (filter #(>= % @penalty-for-exceeding-limit) 
-                                tag-using-pgms))))
+	(doseq [data-fn (vals (ns-publics 'taggp.output-data.tagging))]
+	  (printf "%s %s\n" (parse-output-data-name data-fn) (data-fn tag-using-pgms))))
       (if (@successful-individual? (first sorted))
         (println "Success:" (first (first sorted)))
         (if (>= generation @maximum-generations)
