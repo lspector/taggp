@@ -72,12 +72,14 @@
   [& params]
   (in-ns 'taggp.examples.parity) ;; when using lein run (= *ns* 'user) by default, we need to switch
 ;;;; How to use exp 
-  (use 'taggp.exp.recursion)
-  (use 'taggp.globals :reload)
-  (use 'taggp.tags :reload)
-  (use 'taggp.core :reload)
+;;   (use 'taggp.exp.recursion)
+;;   (use 'taggp.globals :reload)
+;;   (use 'taggp.tags :reload)
+;;   (use 'taggp.core :reload)
 ;;;;
-;;  (set! *warn-on-reflection* true)
+  ;;  (set! *warn-on-reflection* true)
+  (use 'taggp.exp.metrics)
+  (use 'taggp.output-data.population :reload)
   (parse-parameters params
 		    {:allow-tagging true
 		     :tagdo-semantics true
